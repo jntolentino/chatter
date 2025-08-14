@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Eye,
   EyeOff,
@@ -9,7 +9,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAuthStore } from "./../store/useAuthStore";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AuthImagePattern from "../components/AuthImagePattern";
 import toast from "react-hot-toast";
 
@@ -21,7 +21,15 @@ const SignUpPage = () => {
     password: "",
   });
 
-  const { signup, isSigningUp } = useAuthStore();
+  const navigate = useNavigate();
+
+  const { signup, isSigningUp, authUser } = useAuthStore();
+
+  useEffect(() => {
+    if (authUser) {
+      navigate("/"); // or your desired route
+    }
+  }, [authUser, navigate]);
 
   const validateForm = () => {
     if (!formData.fullName.trim()) return toast.error("Full name is required");
