@@ -57,4 +57,6 @@ export const useAuthStore = create((set) => ({
       toast.error("Error logging out");
     }
   },
+
+  updateProfile: async (data) => {},
 }));
