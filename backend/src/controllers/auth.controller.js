@@ -23,6 +23,7 @@ export const signup = async (req, res) => {
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+
     const newUser = new User({
       fullName,
       email,
@@ -69,6 +70,7 @@ export const login = async (req, res) => {
       fullName: user.fullName,
       email: user.email,
       profilePic: user.profilePic,
+      createdAt: user.createdAt, // Include createdAt in the response
     });
   } catch (error) {
     console.error("Error in login controller", error.message);
