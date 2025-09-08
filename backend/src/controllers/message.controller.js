@@ -5,7 +5,7 @@ import cloudinary from "../lib/cloudinary.js";
 
 export const getUsersForSidebar = async (req, res) => {
   try {
-    const loggedInUserId = req.user.id;
+    const loggedInUserId = req.user._id;
     const filteredUsers = await User.find({
       _id: { $ne: loggedInUserId },
     }).select("-password");
@@ -20,16 +20,16 @@ export const getUsersForSidebar = async (req, res) => {
 export const getMessages = async (req, res) => {
   try {
     const { id: userToChatId } = req.params;
-    const myId = req.user.id;
+    const myId = req.user._id;
 
-    const messsages = await Message.find({
+    const messages = await Message.find({
       $or: [
-        { sender: myId, receiver: userToChatId },
-        { sender: userToChatId, receiver: myId },
+        { senderId: myId, receiverId: userToChatId },
+        { senderId: userToChatId, receiverId: myId },
       ],
     });
 
-    res.status(200).json(messsages);
+    res.status(200).json(messages);
   } catch (error) {
     console.error("Error fetching messages", error.message);
     res.status(500).json({ message: "Internal server error." });
