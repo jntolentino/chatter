@@ -6,6 +6,7 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
+import { useRef } from "react";
 
 const ChatContainer = () => {
   const {
@@ -26,6 +27,10 @@ const ChatContainer = () => {
     isMessagesLoading,
   });
 
+  const messageEndRef = useRef(null);
+
+  // Scroll to bottom when messages change
+
   useEffect(() => {
     console.log("useEffect triggered:", selectedUser?._id);
     if (selectedUser?._id) {
@@ -39,6 +44,13 @@ const ChatContainer = () => {
     subscribeToMessages,
     unsubscribeFromMessages,
   ]);
+
+  useEffect(() => {
+    if (messageEndRef.current && messages) {
+      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+      console.log("Scrolled to bottom");
+    }
+  }, [messages]);
 
   // Check if selectedUser exists
   if (!selectedUser) {
@@ -73,6 +85,7 @@ const ChatContainer = () => {
                 className={`chat ${
                   message.senderId === authUser._id ? "chat-end" : "chat-start"
                 }`}
+                ref={messageEndRef}
               >
                 <div className="chat-image avatar">
                   <div className="w-10 h-10 rounded-full border">
