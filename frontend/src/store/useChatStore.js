@@ -47,7 +47,6 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  //todo: optimize
   subscribeToMessages: () => {
     const { selectedUser } = get();
     if (!selectedUser) return;
@@ -55,6 +54,9 @@ export const useChatStore = create((set, get) => ({
 
     // listen for incoming messages
     socket.on("newMessage", (newMessage) => {
+      const isMessageSentFromSelectedUser =
+        newMessage.senderId === selectedUser._id;
+      if (isMessageSentFromSelectedUser) return;
       set({ messages: [...get().messages, newMessage] });
     });
   },
