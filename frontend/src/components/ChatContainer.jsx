@@ -8,8 +8,14 @@ import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
 
 const ChatContainer = () => {
-  const { messages, getMessages, isMessagesLoading, selectedUser } =
-    useChatStore();
+  const {
+    messages,
+    getMessages,
+    isMessagesLoading,
+    selectedUser,
+    subscribeToMessages,
+    unsubscribeFromMessages,
+  } = useChatStore();
   const { authUser } = useAuthStore();
 
   // Debug logs
@@ -24,8 +30,15 @@ const ChatContainer = () => {
     console.log("useEffect triggered:", selectedUser?._id);
     if (selectedUser?._id) {
       getMessages(selectedUser._id);
+      subscribeToMessages();
+      return () => unsubscribeFromMessages();
     }
-  }, [selectedUser._id, getMessages]);
+  }, [
+    selectedUser._id,
+    getMessages,
+    subscribeToMessages,
+    unsubscribeFromMessages,
+  ]);
 
   // Check if selectedUser exists
   if (!selectedUser) {
