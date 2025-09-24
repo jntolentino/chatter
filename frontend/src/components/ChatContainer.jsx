@@ -148,7 +148,7 @@ const ChatContainer = () => {
               </div>
             ))}
 
-            {/* Add typing indicator after messages */}
+            {/* Move typing indicator before the messageEndRef */}
             {typingUsers.includes(selectedUser._id) && (
               <div className="chat chat-start">
                 <div className="chat-bubble min-h-8 flex items-center gap-2 bg-base-200">
@@ -159,7 +159,9 @@ const ChatContainer = () => {
                 </div>
               </div>
             )}
-            <div ref={messageEndRef} />
+
+            {/* Add a wrapper div with padding to create space between messages and typing indicator */}
+            <div className="pt-2" ref={messageEndRef} />
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center">
