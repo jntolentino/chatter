@@ -1,12 +1,11 @@
+import { useRef, useEffect, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
-import { useEffect } from "react";
-
+import { useAuthStore } from "../store/useAuthStore";
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
-import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
-import { useRef } from "react";
+import { ChevronDown } from "lucide-react"; // 👈 scroll button icon
 
 const ChatContainer = () => {
   const {
@@ -19,47 +18,57 @@ const ChatContainer = () => {
   } = useChatStore();
   const { authUser } = useAuthStore();
 
-  // Debug logs
-  console.log("ChatContainer render:", {
-    selectedUser,
-    authUser,
-    messages,
-    isMessagesLoading,
-  });
-
   const messageEndRef = useRef(null);
+  const chatBoxRef = useRef(null); // 👈 chat container
+  const firstLoad = useRef(true);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
-  // Scroll to bottom when messages change
-
+  // Fetch messages & subscribe
   useEffect(() => {
-    console.log("useEffect triggered:", selectedUser?._id);
     if (selectedUser?._id) {
       getMessages(selectedUser._id);
       subscribeToMessages();
+      firstLoad.current = true; // reset on chat switch
       return () => unsubscribeFromMessages();
     }
   }, [
-    selectedUser._id,
+    selectedUser?._id,
     getMessages,
     subscribeToMessages,
     unsubscribeFromMessages,
   ]);
 
+  // Scroll handling
   useEffect(() => {
     if (messageEndRef.current && messages) {
-      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
-      console.log("Scrolled to bottom");
+      if (firstLoad.current) {
+        messageEndRef.current.scrollIntoView({ behavior: "auto" });
+        firstLoad.current = false;
+      } else {
+        messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+      }
     }
   }, [messages]);
 
-  // Check if selectedUser exists
-  if (!selectedUser) {
-    console.log("No selected user, returning null");
-    return null;
-  }
+  // Detect scroll position to toggle button
+  const handleScroll = () => {
+    if (!chatBoxRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = chatBoxRef.current;
+
+    // show button if not near bottom (100px offset)
+    setShowScrollBtn(scrollHeight - (scrollTop + clientHeight) > 100);
+  };
+
+  // Manual scroll
+  const scrollToBottom = () => {
+    if (messageEndRef.current) {
+      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  if (!selectedUser) return null;
 
   if (isMessagesLoading) {
-    console.log("Loading messages...");
     return (
       <div className="flex-1 flex flex-col overflow-auto">
         <ChatHeader />
@@ -69,23 +78,23 @@ const ChatContainer = () => {
     );
   }
 
-  console.log("Rendering messages:", messages?.length);
-
   return (
     <div className="flex-1 flex flex-col overflow-auto">
       <ChatHeader />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div
+        ref={chatBoxRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-4 space-y-4 relative"
+      >
         {messages && messages.length > 0 ? (
-          messages.map((message) => {
-            console.log("Rendering message:", message);
-            return (
+          <>
+            {messages.map((message) => (
               <div
                 key={message._id}
                 className={`chat ${
                   message.senderId === authUser._id ? "chat-end" : "chat-start"
                 }`}
-                ref={messageEndRef}
               >
                 <div className="chat-image avatar">
                   <div className="w-10 h-10 rounded-full border">
@@ -96,10 +105,7 @@ const ChatContainer = () => {
                           : selectedUser.profilePic || "/avatar.png"
                       }
                       alt="profile pic"
-                      onError={(e) => {
-                        console.log("Image load error:", e.target.src);
-                        e.target.src = "/avatar.png";
-                      }}
+                      onError={(e) => (e.target.src = "/avatar.png")}
                     />
                   </div>
                 </div>
@@ -114,16 +120,16 @@ const ChatContainer = () => {
                       src={message.image}
                       alt="attachment"
                       className="max-w-[200px] rounded mb-2"
-                      onError={(e) => {
-                        console.log("Attachment image error:", e.target.src);
-                      }}
                     />
                   )}
                   {message.text && <p>{message.text}</p>}
                 </div>
               </div>
-            );
-          })
+            ))}
+
+            {/* Always at bottom */}
+            <div ref={messageEndRef} />
+          </>
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <p className="text-gray-500">
@@ -131,7 +137,18 @@ const ChatContainer = () => {
             </p>
           </div>
         )}
+
+        {/* 👇 Scroll-to-bottom button */}
+        {showScrollBtn && (
+          <button
+            onClick={scrollToBottom}
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 btn btn-circle btn-sm btn-primary shadow-lg"
+          >
+            <ChevronDown size={20} />
+          </button>
+        )}
       </div>
+
       <MessageInput />
     </div>
   );
