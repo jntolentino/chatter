@@ -5,7 +5,7 @@ import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { formatMessageTime } from "../lib/utils";
-import { ChevronDown } from "lucide-react"; // 👈 scroll button icon
+import { ChevronDown } from "lucide-react";
 
 const ChatContainer = () => {
   const {
@@ -15,20 +15,23 @@ const ChatContainer = () => {
     selectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
+    typingUsers, // Remove socket from here
   } = useChatStore();
-  const { authUser } = useAuthStore();
+  const { authUser, socket } = useAuthStore(); // Get socket from authStore instead
 
   const messageEndRef = useRef(null);
-  const chatBoxRef = useRef(null); // 👈 chat container
+  const chatBoxRef = useRef(null);
   const firstLoad = useRef(true);
+
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [isTyping, setIsTyping] = useState(false); // For typing indicator
 
   // Fetch messages & subscribe
   useEffect(() => {
     if (selectedUser?._id) {
       getMessages(selectedUser._id);
       subscribeToMessages();
-      firstLoad.current = true; // reset on chat switch
+      firstLoad.current = true;
       return () => unsubscribeFromMessages();
     }
   }, [
@@ -50,16 +53,34 @@ const ChatContainer = () => {
     }
   }, [messages]);
 
-  // Detect scroll position to toggle button
+  // Update typing effect
+  useEffect(() => {
+    if (!socket || !selectedUser) return;
+
+    const handleTyping = ({ senderId }) => {
+      if (senderId === selectedUser._id) setIsTyping(true);
+    };
+
+    const handleStopTyping = ({ senderId }) => {
+      if (senderId === selectedUser._id) setIsTyping(false);
+    };
+
+    socket.on("typing", handleTyping);
+    socket.on("stopTyping", handleStopTyping);
+
+    return () => {
+      socket.off("typing", handleTyping);
+      socket.off("stopTyping", handleStopTyping);
+    };
+  }, [socket, selectedUser]);
+
+  // Detect scroll position
   const handleScroll = () => {
     if (!chatBoxRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = chatBoxRef.current;
-
-    // show button if not near bottom (100px offset)
     setShowScrollBtn(scrollHeight - (scrollTop + clientHeight) > 100);
   };
 
-  // Manual scroll
   const scrollToBottom = () => {
     if (messageEndRef.current) {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -127,7 +148,17 @@ const ChatContainer = () => {
               </div>
             ))}
 
-            {/* Always at bottom */}
+            {/* Add typing indicator after messages */}
+            {typingUsers.includes(selectedUser._id) && (
+              <div className="chat chat-start">
+                <div className="chat-bubble min-h-8 flex items-center gap-2 bg-base-200">
+                  <span className="loading loading-dots loading-sm"></span>
+                  <span className="text-sm opacity-70">
+                    {selectedUser.fullName} is typing...
+                  </span>
+                </div>
+              </div>
+            )}
             <div ref={messageEndRef} />
           </>
         ) : (
@@ -138,7 +169,6 @@ const ChatContainer = () => {
           </div>
         )}
 
-        {/* 👇 Scroll-to-bottom button */}
         {showScrollBtn && (
           <button
             onClick={scrollToBottom}

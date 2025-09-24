@@ -1,14 +1,17 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Image, Send, X } from "lucide-react";
-import { useRef } from "react";
 import { useChatStore } from "../store/useChatStore";
+import { useAuthStore } from "../store/useAuthStore";
 import toast from "react-hot-toast";
 
 const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
-  const { sendMessage } = useChatStore();
+  const typingTimeoutRef = useRef(null);
+
+  const { sendMessage, selectedUser } = useChatStore();
+  const { socket } = useAuthStore();
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -32,21 +35,42 @@ const MessageInput = () => {
     e.preventDefault();
     if (!text.trim() && !imagePreview) return;
 
-    console.log("Before sending - text", text); //debug log
     try {
       await sendMessage({
         text: text.trim(),
         image: imagePreview,
       });
 
-      //Clear Form
+      // Clear form
       setText("");
       setImagePreview(null);
-
       if (fileInputRef.current) fileInputRef.current.value = "";
+
+      // stop typing after sending
+      if (selectedUser?._id) {
+        socket.emit("stopTyping", { receiverId: selectedUser._id });
+      }
     } catch (error) {
       console.error("Failed to send message", error);
     }
+  };
+
+  // 👉 typing handler
+  const handleTyping = (e) => {
+    setText(e.target.value);
+
+    if (!selectedUser?._id || !socket) return;
+
+    // Emit typing event
+    socket.emit("typing", { receiverId: selectedUser._id });
+
+    // Clear previous timeout
+    clearTimeout(typingTimeoutRef.current);
+
+    // Set new timeout
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit("stopTyping", { receiverId: selectedUser._id });
+    }, 1000);
   };
 
   return (
@@ -78,7 +102,7 @@ const MessageInput = () => {
             className="w-full input input-bordered rounded-lg btn-sm"
             placeholder="Type a message..."
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={handleTyping} // 👈 typing events
           />
 
           <input

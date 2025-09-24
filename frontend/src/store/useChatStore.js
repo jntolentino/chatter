@@ -7,9 +7,10 @@ export const useChatStore = create((set, get) => ({
   messages: [],
   users: [],
   selectedUser: null,
-  conversations: [], // STEP 1: Add this line
+  conversations: [],
   isUsersLoading: false,
   isMessagesLoading: false,
+  typingUsers: [], // Make sure this exists
 
   getUsers: async () => {
     set({ isUsersLoading: true });
@@ -60,36 +61,43 @@ export const useChatStore = create((set, get) => ({
   subscribeToMessages: () => {
     const { selectedUser } = get();
     if (!selectedUser) return;
+
     const socket = useAuthStore.getState().socket;
+    if (!socket) return;
 
-    // listen for incoming messages (corrected logic)
+    // Handle typing events
+    socket.on("typing", ({ senderId }) => {
+      set((state) => ({
+        typingUsers: state.typingUsers.includes(senderId)
+          ? state.typingUsers
+          : [...state.typingUsers, senderId],
+      }));
+    });
+
+    socket.on("stopTyping", ({ senderId }) => {
+      set((state) => ({
+        typingUsers: state.typingUsers.filter((id) => id !== senderId),
+      }));
+    });
+
     socket.on("newMessage", (newMessage) => {
-      const isMessageSentFromSelectedUser =
-        newMessage.senderId === selectedUser._id;
-      if (!isMessageSentFromSelectedUser) return;
+      const isMessageFromSelectedUser =
+        newMessage.senderId === selectedUser._id ||
+        newMessage.receiverId === selectedUser._id;
 
-      // Add message to current chat
-      set({ messages: [...get().messages, newMessage] });
-
-      // STEP 3: Also update conversation order
-      const { users } = get();
-      const sender = users.find((u) => u._id === newMessage.senderId);
-
-      if (sender) {
-        get().updateConversationOrder({
-          userId: sender._id,
-          fullName: sender.fullName,
-          profilePic: sender.profilePic,
-          lastMessage: newMessage.text || "📎 File",
-          lastMessageTime: newMessage.createdAt,
-        });
+      if (isMessageFromSelectedUser) {
+        set({ messages: [...get().messages, newMessage] });
       }
     });
   },
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
+    if (!socket) return;
+
     socket.off("newMessage");
+    socket.off("typing");
+    socket.off("stopTyping");
   },
 
   setSelectedUser: (selectedUser) => {
